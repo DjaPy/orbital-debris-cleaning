@@ -8,6 +8,53 @@ import random
 TIC_TIMEOUT = 0.1
 BASE_DIR = str(pathlib.Path(__file__).resolve().parent)
 
+SPACE_KEY_CODE = 32
+LEFT_KEY_CODE = 260
+RIGHT_KEY_CODE = 261
+UP_KEY_CODE = 259
+DOWN_KEY_CODE = 258
+
+
+def read_controls(canvas):
+    """Read keys pressed and returns tuple with controls state."""
+
+    rows_direction = columns_direction = 0
+    space_pressed = False
+
+    while True:
+        canvas.nodelay(True)
+        pressed_key_code = canvas.getch()
+
+        if pressed_key_code == -1:
+            # https://docs.python.org/3/library/curses.html#curses.window.getch
+            break
+
+        if pressed_key_code == UP_KEY_CODE:
+            rows_direction = -1
+
+        if pressed_key_code == DOWN_KEY_CODE:
+            rows_direction = 1
+
+        if pressed_key_code == RIGHT_KEY_CODE:
+            columns_direction = 1
+
+        if pressed_key_code == LEFT_KEY_CODE:
+            columns_direction = -1
+
+        if pressed_key_code == SPACE_KEY_CODE:
+            space_pressed = True
+
+    return rows_direction, columns_direction, space_pressed
+
+
+def get_frame_size(text):
+    """Calculate size of multiline text fragment. Returns pair (rows number, colums number)"""
+
+    lines = text.splitlines()
+    rows = len(lines)
+    columns = max([len(line) for line in lines])
+    return rows, columns
+
 
 def settings(canvas, sleep):
     curses.curs_set(False)
@@ -24,11 +71,13 @@ def draw(canvas):
     """
     max_row, max_column = canvas.getmaxyx()
     count_stars = 75
+
     coroutines = get_coroutine_list(count_stars, max_row, max_column, canvas)
     fire_corutines = fire(canvas, start_row=max_row/2, start_column=max_column/2)
     text = create_text_frame()
+    row_text, column_text = get_frame_size(text[0])
     coroutines_spacecruft = animate_spaceship(
-        canvas, text, start_row=max_row/2, start_column=max_column/2,
+        canvas, text, max_row, max_column, row_text, column_text
     )
     coroutines_with_space_ship = [fire_corutines, coroutines_spacecruft] + coroutines
     while True:
@@ -176,20 +225,48 @@ def draw_frame(canvas, start_row, start_column, text, negative=False):
             canvas.addch(row, column, symbol)
 
 
-async def animate_spaceship(canvas, text, start_row, start_column, ):
+async def animate_spaceship(
+        canvas, text, max_row, max_column, row_text, column_text
+):
     """Asynchronous animation of the spacecraft"""
 
     frame_1, frame_2 = text
+    start_row = max_row // 2
+    start_column = max_column // 2
+    min_legal_row = 1 + row_text
+    max_legal_row = max_row - 1
+    min_legal_column = 2
+    max_legal_column = max_column - (column_text + 1)
+    legal_row_list = range(min_legal_row, max_legal_row)
+    legal_column_list = range(min_legal_column, max_legal_column)
 
     while True:
+        row_direction, column_direction, _ = read_controls(canvas)
+
+        if start_row in legal_row_list:
+            start_row += row_direction
+            if start_row < min_legal_row:
+                start_row += 1
+            if start_row > max_legal_row:
+                start_row -= 1
+
+        if start_column in legal_column_list:
+            start_column += column_direction
+
+            if start_column < min_legal_column:
+                start_column += 1
+            if start_column > max_legal_column:
+                start_column -= 1
+
         draw_frame(canvas, start_row, start_column, frame_1)
         await asyncio.sleep(0)
         await asyncio.sleep(0)
-
         draw_frame(canvas, start_row, start_column, frame_1, negative=True)
+
         draw_frame(canvas, start_row, start_column, frame_2)
         await asyncio.sleep(0)
         await asyncio.sleep(0)
+        draw_frame(canvas, start_row, start_column, frame_2, negative=True)
 
 
 if __name__ == '__main__':
