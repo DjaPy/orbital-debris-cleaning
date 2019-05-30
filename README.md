@@ -1,4 +1,4 @@
-# orbital-debris-cleaning
+
 # Game orbital debris cleaning
 
 A small game written on an asynchronous Python. The project is a training, to hone the skills of asynchronous programming.
@@ -63,5 +63,5 @@ Move the ship with the cursor. Fly around garbage.
 
 ### Conclusion
 
-Have a good trip to space ;) !
+Good luck with your space journey ;) !
 
