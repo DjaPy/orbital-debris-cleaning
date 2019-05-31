@@ -48,7 +48,10 @@ def read_controls(canvas):
 
 
 def get_frame_size(text):
-    """Calculate size of multiline text fragment. Returns pair (rows number, colums number)"""
+    """Calculate size of multiline text fragment.
+
+     Returns pair (rows number, columns number)
+     """
 
     lines = text.splitlines()
     rows = len(lines)
@@ -73,11 +76,13 @@ def draw(canvas):
     count_stars = 75
 
     coroutines = get_coroutine_list(count_stars, max_row, max_column, canvas)
-    fire_corutines = fire(canvas, start_row=max_row/2, start_column=max_column/2)
-    text = create_text_frame()
-    row_text, column_text = get_frame_size(text[0])
+    fire_corutines = fire(
+        canvas, row=max_row/2, column=max_column/2
+    )
+    frames_animation = create_text_frame()
+    count_rows, count_columns = get_frame_size(frames_animation[0])
     coroutines_spacecruft = animate_spaceship(
-        canvas, text, max_row, max_column, row_text, column_text
+        canvas, frames_animation, max_row, max_column, count_rows, count_columns
     )
     coroutines_with_space_ship = [fire_corutines, coroutines_spacecruft] + coroutines
     while True:
@@ -139,12 +144,10 @@ async def blink(canvas, row, column, symbol='*'):
 
 
 async def fire(
-        canvas, start_row, start_column
+        canvas, row, column
         , rows_speed=-0.5, columns_speed=0
 ):
     """Display animation of gun shot. Direction and speed can be specified."""
-
-    row, column = start_row, start_column
 
     canvas.addstr(round(row), round(column), '*')
     await asyncio.sleep(0)
@@ -191,21 +194,21 @@ def create_text_frame():
     return frame_1, frame_2
 
 
-def draw_frame(canvas, start_row, start_column, text, negative=False):
+def draw_frame(canvas, rows, columns, text, negative=False):
     """Draw text fragment on canvas.
 
     Erase text instead of drawing if negative=True is specified.
     """
     rows_number, columns_number = canvas.getmaxyx()
 
-    for row, line in enumerate(text.splitlines(), round(start_row)):
+    for row, line in enumerate(text.splitlines(), round(rows)):
         if row < 0:
             continue
 
         if row >= rows_number:
             break
 
-        for column, symbol in enumerate(line, round(start_column)):
+        for column, symbol in enumerate(line, round(columns)):
             if column < 0:
                 continue
 
@@ -226,13 +229,13 @@ def draw_frame(canvas, start_row, start_column, text, negative=False):
 
 
 async def animate_spaceship(
-        canvas, text, max_row, max_column, row_text, column_text
+        canvas, frames_animation, max_row, max_column, row_text, column_text
 ):
     """Asynchronous animation of the spacecraft"""
 
-    frame_1, frame_2 = text
-    start_row = max_row // 2
-    start_column = max_column // 2
+    frame_1, frame_2 = frames_animation
+    position_row = max_row // 2
+    position_column = max_column // 2
     min_legal_row = 1 + row_text
     max_legal_row = max_row - 1
     min_legal_column = 2
@@ -243,30 +246,30 @@ async def animate_spaceship(
     while True:
         row_direction, column_direction, _ = read_controls(canvas)
 
-        if start_row in legal_row_list:
-            start_row += row_direction
-            if start_row < min_legal_row:
-                start_row += 1
-            if start_row > max_legal_row:
-                start_row -= 1
+        if min_legal_row <= position_row < max_legal_row:
+            position_row += row_direction
+            if position_row < min_legal_row:
+                position_row += 1
+            if position_row > max_legal_row:
+                position_row -= 1
 
-        if start_column in legal_column_list:
-            start_column += column_direction
+        if min_legal_column <= position_column < max_legal_column:
+            position_column += column_direction
 
-            if start_column < min_legal_column:
-                start_column += 1
-            if start_column > max_legal_column:
-                start_column -= 1
+            if position_column < min_legal_column:
+                position_column += 1
+            if position_column > max_legal_column:
+                position_column -= 1
 
-        draw_frame(canvas, start_row, start_column, frame_1)
+        draw_frame(canvas, position_row, position_column, frame_1)
         await asyncio.sleep(0)
         await asyncio.sleep(0)
-        draw_frame(canvas, start_row, start_column, frame_1, negative=True)
+        draw_frame(canvas, position_row, position_column, frame_1, negative=True)
 
-        draw_frame(canvas, start_row, start_column, frame_2)
+        draw_frame(canvas, position_row, position_column, frame_2)
         await asyncio.sleep(0)
         await asyncio.sleep(0)
-        draw_frame(canvas, start_row, start_column, frame_2, negative=True)
+        draw_frame(canvas, position_row, position_column, frame_2, negative=True)
 
 
 if __name__ == '__main__':
