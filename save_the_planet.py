@@ -30,16 +30,16 @@ def read_controls(canvas):
             break
 
         if pressed_key_code == UP_KEY_CODE:
-            rows_direction = -1
+            rows_direction = -2
 
         if pressed_key_code == DOWN_KEY_CODE:
-            rows_direction = 1
+            rows_direction = 2
 
         if pressed_key_code == RIGHT_KEY_CODE:
-            columns_direction = 1
+            columns_direction = 2
 
         if pressed_key_code == LEFT_KEY_CODE:
-            columns_direction = -1
+            columns_direction = -2
 
         if pressed_key_code == SPACE_KEY_CODE:
             space_pressed = True
@@ -59,21 +59,16 @@ def get_frame_size(text):
     return rows, columns
 
 
-def settings(canvas, sleep):
-    curses.curs_set(False)
-    canvas.border()
-    canvas.refresh()
-    time.sleep(sleep)
-
-
 def draw(canvas):
     """Starts an event loop to render the screen
 
     :param canvas:
     :return:
     """
+
+    canvas.border()
     max_row, max_column = canvas.getmaxyx()
-    count_stars = 75
+    count_stars = 85
 
     coroutines = get_coroutine_list(count_stars, max_row, max_column, canvas)
     fire_corutines = fire(
@@ -81,16 +76,17 @@ def draw(canvas):
     )
     frames_animation = create_text_frame()
     count_rows, count_columns = get_frame_size(frames_animation[0])
-    coroutines_spacecruft = animate_spaceship(
+    coroutines_spacecraft = animate_spaceship(
         canvas, frames_animation, max_row, max_column, count_rows, count_columns
     )
-    coroutines_with_space_ship = [fire_corutines, coroutines_spacecruft] + coroutines
+    coroutines_with_space_ship = [fire_corutines, coroutines_spacecraft] + coroutines
     while True:
         try:
             for coroutine in coroutines_with_space_ship:
                 coroutine.send(None)
                 canvas.refresh()
-            settings(canvas, sleep=TIC_TIMEOUT)
+            time.sleep(TIC_TIMEOUT)
+
         except StopIteration:
             coroutines_with_space_ship.remove(coroutine)
         except (SystemExit, KeyboardInterrupt):
@@ -103,29 +99,30 @@ def get_coroutine_list(count, max_row, max_column, canvas):
     offset_column = 2
     start_row = 2
     start_column = 2
-    start_list = ['*', '+', '.', ':']
+    stars_list = ['*', '+', '.', ':']
     coroutines = []
-    while number != count:
+    for _ in range(number, count):
         row = random.randint(start_row, max_row - offset_row)
         column = random.randint(start_column, max_column - offset_column)
-        symbol = random.choice(start_list)
-        coroutine = blink(canvas, row, column, symbol)
+        symbol = random.choice(stars_list)
+        offset_tic = random.randint(1, 5)
+        coroutine = blink(canvas, row, column, offset_tic, symbol)
         coroutines.append(coroutine)
-        number += 1
     return coroutines
 
 
-async def blink(canvas, row, column, symbol='*'):
+async def blink(canvas, row, column, offset_tic, symbol):
     """Sets the synchronous flashing of stars on the terminal screen.
 
     :param canvas:
     :param row:
     :param column:
     :param symbol:
+    :param offset_tic:
     :return:
     """
     while True:
-        async_blink = random.randint(1, 5)
+        async_blink = offset_tic
         canvas.addstr(row, column, symbol, curses.A_DIM)
         for _ in range(async_blink):
             await asyncio.sleep(0)
@@ -229,37 +226,36 @@ def draw_frame(canvas, rows, columns, text, negative=False):
 
 
 async def animate_spaceship(
-        canvas, frames_animation, max_row, max_column, row_text, column_text
+        canvas, frames_animation, max_row, max_column, count_row, count_column
 ):
     """Asynchronous animation of the spacecraft"""
 
     frame_1, frame_2 = frames_animation
     position_row = max_row // 2
     position_column = max_column // 2
-    min_legal_row = 1 + row_text
+    min_legal_row = 1 + count_row
     max_legal_row = max_row - 1
-    min_legal_column = 2
-    max_legal_column = max_column - (column_text + 1)
-    legal_row_list = range(min_legal_row, max_legal_row)
-    legal_column_list = range(min_legal_column, max_legal_column)
+    min_legal_column = 1
+    max_legal_column = max_column - (count_column + 1)
 
     while True:
         row_direction, column_direction, _ = read_controls(canvas)
 
         if min_legal_row <= position_row < max_legal_row:
             position_row += row_direction
+
             if position_row < min_legal_row:
-                position_row += 1
+                position_row = max(min_legal_column, position_row)
             if position_row > max_legal_row:
-                position_row -= 1
+                position_row = min(max_legal_row, position_row)
 
         if min_legal_column <= position_column < max_legal_column:
             position_column += column_direction
 
             if position_column < min_legal_column:
-                position_column += 1
+                position_column = max(min_legal_column, position_column)
             if position_column > max_legal_column:
-                position_column -= 1
+                position_column = min(max_legal_column, position_row)
 
         draw_frame(canvas, position_row, position_column, frame_1)
         await asyncio.sleep(0)
@@ -275,3 +271,4 @@ async def animate_spaceship(
 if __name__ == '__main__':
     curses.update_lines_cols()
     curses.wrapper(draw)
+    curses.curs_set(False)
