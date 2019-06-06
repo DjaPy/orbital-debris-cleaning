@@ -74,17 +74,21 @@ def draw(canvas):
     fire_corutines = fire(
         canvas, row=max_row/2, column=max_column/2
     )
-    frames_animation = create_text_frame()
+    relative_pathes_frame = ['/frame/rocket_frame_1', '/frame/rocket_frame_2']
+    file_pathes_to_frames = [
+        BASE_DIR + path_file_frame for path_file_frame in relative_pathes_frame
+    ]
+    frames_animation = [read_file(path) for path in file_pathes_to_frames]
     count_rows, count_columns = get_frame_size(frames_animation[0])
     coroutines_spacecraft = animate_spaceship(
         canvas, frames_animation, max_row, max_column, count_rows, count_columns
     )
     coroutines_with_space_ship = [fire_corutines, coroutines_spacecraft] + coroutines
     while True:
+        canvas.refresh()
         try:
             for coroutine in coroutines_with_space_ship:
                 coroutine.send(None)
-                canvas.refresh()
             time.sleep(TIC_TIMEOUT)
 
         except StopIteration:
@@ -105,24 +109,24 @@ def get_coroutine_list(count, max_row, max_column, canvas):
         row = random.randint(start_row, max_row - offset_row)
         column = random.randint(start_column, max_column - offset_column)
         symbol = random.choice(stars_list)
-        offset_tic = random.randint(1, 5)
-        coroutine = blink(canvas, row, column, offset_tic, symbol)
+        offset_tics = random.randint(1, 5)
+        coroutine = blink(canvas, row, column, offset_tics, symbol)
         coroutines.append(coroutine)
     return coroutines
 
 
-async def blink(canvas, row, column, offset_tic, symbol):
+async def blink(canvas, row, column, offset_tics, symbol):
     """Sets the synchronous flashing of stars on the terminal screen.
 
     :param canvas:
     :param row:
     :param column:
     :param symbol:
-    :param offset_tic:
+    :param offset_tics:
     :return:
     """
     while True:
-        async_blink = offset_tic
+        async_blink = offset_tics
         canvas.addstr(row, column, symbol, curses.A_DIM)
         for _ in range(async_blink):
             await asyncio.sleep(0)
@@ -171,9 +175,9 @@ async def fire(
         column += columns_speed
 
 
-def get_frame(name_frame):
+def read_file(frame_name):
 
-    with open(name_frame, 'r') as file:
+    with open(frame_name, 'r') as file:
         frame = file.read()
 
     return frame
@@ -186,8 +190,8 @@ def create_text_frame():
     )
     path_frame_1, path_frame_2 = list_path_file_frame
 
-    frame_1 = get_frame(path_frame_1)
-    frame_2 = get_frame(path_frame_2)
+    frame_1 = read_file(path_frame_1)
+    frame_2 = read_file(path_frame_2)
     return frame_1, frame_2
 
 
