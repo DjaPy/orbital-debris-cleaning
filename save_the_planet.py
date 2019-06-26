@@ -7,12 +7,16 @@ import random
 
 TIC_TIMEOUT = 0.1
 BASE_DIR = str(pathlib.Path(__file__).resolve().parent)
+FRAME_DIR = BASE_DIR + '/frame/'
+
 
 SPACE_KEY_CODE = 32
 LEFT_KEY_CODE = 260
 RIGHT_KEY_CODE = 261
 UP_KEY_CODE = 259
 DOWN_KEY_CODE = 258
+
+COROUTINES = []
 
 
 def read_controls(canvas):
@@ -69,50 +73,87 @@ def draw(canvas):
     canvas.border()
     max_row, max_column = canvas.getmaxyx()
     count_stars = 85
+    count_garbage = 100
 
-    coroutines = get_coroutine_list(count_stars, max_row, max_column, canvas)
+    get_coroutine_stars(count_stars, max_row, max_column, canvas)
     fire_corutines = fire(
         canvas, row=max_row/2, column=max_column/2
     )
-    relative_pathes_frame = ['/frame/rocket_frame_1', '/frame/rocket_frame_2']
-    file_pathes_to_frames = [
-        BASE_DIR + path_file_frame for path_file_frame in relative_pathes_frame
+    COROUTINES.append(fire_corutines)
+
+    relative_pathes_frame = {
+        'space_garbage': [
+            'duck.txt', 'hubble.txt',
+            'lamp.txt', 'trash_l.txt',
+            'trash_s.txt', 'trash_xl.txt',
+        ],
+        'spaceship_frame': [
+            'rocket_frame_1', 'rocket_frame_2',
+        ],
+    }
+
+    file_pathes_to_frames_spaceships = [
+        FRAME_DIR + path_file_frame for path_file_frame in relative_pathes_frame['spaceship_frame']
     ]
-    frames_animation = [read_file(path) for path in file_pathes_to_frames]
-    count_rows, count_columns = get_frame_size(frames_animation[0])
+
+    frames_animation_spaceship = [
+        read_file(path) for path in file_pathes_to_frames_spaceships
+    ]
+
+    pathes_to_garbage_frame = [
+        FRAME_DIR + path_file_frame for path_file_frame in relative_pathes_frame['space_garbage']
+    ]
+    count_rows, count_columns = get_frame_size(frames_animation_spaceship[0])
     coroutines_spacecraft = animate_spaceship(
-        canvas, frames_animation, max_row, max_column, count_rows, count_columns
+        canvas, frames_animation_spaceship, max_row, max_column, count_rows, count_columns
     )
-    coroutines_with_space_ship = [fire_corutines, coroutines_spacecraft] + coroutines
+
+    COROUTINES.append(coroutines_spacecraft)
+    coroutines_of_space_garbage = fill_orbit_with_garbage(
+        canvas, pathes_to_garbage_frame, max_column
+    )
+
+    COROUTINES.append(coroutines_of_space_garbage)
     while True:
         canvas.refresh()
         try:
-            for coroutine in coroutines_with_space_ship:
+            for coroutine in COROUTINES:
                 coroutine.send(None)
             time.sleep(TIC_TIMEOUT)
 
         except StopIteration:
-            coroutines_with_space_ship.remove(coroutine)
+            COROUTINES.remove(coroutine)
         except (SystemExit, KeyboardInterrupt):
             exit(0)
 
 
-def get_coroutine_list(count, max_row, max_column, canvas):
+def get_coroutine_stars(count, max_row, max_column, canvas):
     number = 0
     offset_row = 2
     offset_column = 2
     start_row = 2
     start_column = 2
     stars_list = ['*', '+', '.', ':']
-    coroutines = []
     for _ in range(number, count):
         row = random.randint(start_row, max_row - offset_row)
         column = random.randint(start_column, max_column - offset_column)
         symbol = random.choice(stars_list)
         offset_tics = random.randint(1, 5)
         coroutine = blink(canvas, row, column, offset_tics, symbol)
-        coroutines.append(coroutine)
-    return coroutines
+        COROUTINES.append(coroutine)
+
+
+async def fill_orbit_with_garbage(canvas, paths, max_column):
+    start_column = 2
+    offset_column = 2
+    while True:
+        path_to_frame = random.choice(paths)
+        column_for_garbage = random.randint(
+            start_column, max_column - offset_column
+        )
+        garbage_frame = read_file(path_to_frame)
+        await fly_garbage(canvas, column_for_garbage, garbage_frame)
+        await asyncio.sleep(0)
 
 
 async def blink(canvas, row, column, offset_tics, symbol):
@@ -181,18 +222,6 @@ def read_file(frame_name):
         frame = file.read()
 
     return frame
-
-
-def create_text_frame():
-    list_path_file_frame = (
-        BASE_DIR + '/frame/rocket_frame_1',
-        BASE_DIR + '/frame/rocket_frame_2',
-    )
-    path_frame_1, path_frame_2 = list_path_file_frame
-
-    frame_1 = read_file(path_frame_1)
-    frame_2 = read_file(path_frame_2)
-    return frame_1, frame_2
 
 
 def draw_frame(canvas, rows, columns, text, negative=False):
@@ -270,6 +299,26 @@ async def animate_spaceship(
         await asyncio.sleep(0)
         await asyncio.sleep(0)
         draw_frame(canvas, position_row, position_column, frame_2, negative=True)
+
+
+async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
+    """Animate garbage, flying from top to bottom.
+
+    Сolumn position will stay same, as specified on start.
+
+    """
+    rows_number, columns_number = canvas.getmaxyx()
+
+    column = max(column, 0)
+    column = min(column, columns_number - 1)
+
+    row = 0
+
+    while row < rows_number:
+        draw_frame(canvas, row, column, garbage_frame)
+        await asyncio.sleep(0)
+        draw_frame(canvas, row, column, garbage_frame, negative=True)
+        row += speed
 
 
 if __name__ == '__main__':
