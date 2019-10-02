@@ -73,7 +73,7 @@ def draw(canvas):
     canvas.border()
     max_row, max_column = canvas.getmaxyx()
     count_stars = 85
-    count_garbage = 100
+    count_garbage = 10
 
     get_coroutine_stars(count_stars, max_row, max_column, canvas)
     fire_corutines = fire(
@@ -109,11 +109,17 @@ def draw(canvas):
     )
 
     COROUTINES.append(coroutines_spacecraft)
-    coroutines_of_space_garbage = fill_orbit_with_garbage(
-        canvas, pathes_to_garbage_frame, max_column
-    )
+    coroutines_of_space_garbage = [
+        fill_orbit_with_garbage(canvas, pathes_to_garbage_frame, max_column)
+        for _ in range(count_garbage)
+    ]
 
-    COROUTINES.append(coroutines_of_space_garbage)
+    cosmic_objects = [
+        fire_corutines,
+        coroutines_spacecraft,
+        *coroutines_of_space_garbage,
+    ]
+    COROUTINES.extend(cosmic_objects)
     while True:
         canvas.refresh()
         try:
@@ -152,7 +158,7 @@ async def fill_orbit_with_garbage(canvas, paths, max_column):
             start_column, max_column - offset_column
         )
         garbage_frame = read_file(path_to_frame)
-        await fly_garbage(canvas, column_for_garbage, garbage_frame)
+        fly_garbage(canvas, column_for_garbage, garbage_frame)
         await asyncio.sleep(0)
 
 
@@ -301,7 +307,7 @@ async def animate_spaceship(
         draw_frame(canvas, position_row, position_column, frame_2, negative=True)
 
 
-async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
+def fly_garbage(canvas, column, garbage_frame, speed=0.5):
     """Animate garbage, flying from top to bottom.
 
     Сolumn position will stay same, as specified on start.
@@ -316,7 +322,6 @@ async def fly_garbage(canvas, column, garbage_frame, speed=0.5):
 
     while row < rows_number:
         draw_frame(canvas, row, column, garbage_frame)
-        await asyncio.sleep(0)
         draw_frame(canvas, row, column, garbage_frame, negative=True)
         row += speed
 
